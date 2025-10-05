@@ -1,0 +1,208 @@
+package com.example.backend.controller;
+
+import com.example.backend.entity.ImageType;
+import com.example.backend.entity.WeeklyWinner;
+import com.example.backend.service.WeeklyWinnerService;
+import com.example.backend.util.ApiResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.util.Map;
+
+@CrossOrigin(origins = "*")
+@RestController
+@RequestMapping("/api/weekly-winners")
+public class WeeklyWinnerController {
+
+    @Autowired
+    private WeeklyWinnerService weeklyWinnerService;
+
+    /**
+     * Create a new weekly winner entry
+     */
+    @PostMapping("/create")
+    public ResponseEntity<?> createWeeklyWinner(
+            @RequestParam("sundayDate") String sundayDateStr,
+            @RequestParam("type") ImageType type,
+            @RequestParam("image") MultipartFile imageFile,
+            @RequestParam(value = "title", required = false) String title) {
+
+        try {
+            LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            WeeklyWinner winner = weeklyWinnerService.createWeeklyWinner(sundayDate, type, imageFile, title);
+
+            Map<String, Object> response = ApiResponse.successBuilder()
+                .message("Weekly winner created successfully")
+                .data("winnerId", winner.getId())
+                .data("imageId", winner.getImage().getId())
+                .data("sundayDate", sundayDate.toString())
+                .data("type", type.toString())
+                .build();
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                ApiResponse.error(e.getMessage())
+            );
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ApiResponse.error(e.getMessage())
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error creating weekly winner: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Update or create a weekly winner entry
+     */
+    @PutMapping("/update")
+    public ResponseEntity<?> updateWeeklyWinner(
+            @RequestParam("sundayDate") String sundayDateStr,
+            @RequestParam("type") ImageType type,
+            @RequestParam("image") MultipartFile imageFile,
+            @RequestParam(value = "title", required = false) String title) {
+
+        try {
+            LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            
+            boolean wasExisting = weeklyWinnerService.wasExistingWinner(sundayDate, type);
+            
+            WeeklyWinner winner = weeklyWinnerService.updateOrCreateWeeklyWinner(
+                sundayDate, type, imageFile, title
+            );
+
+            String message = wasExisting 
+                ? "Weekly winner updated successfully" 
+                : "Weekly winner created successfully (no existing entry found)";
+
+            Map<String, Object> response = ApiResponse.successBuilder()
+                .message(message)
+                .data("winnerId", winner.getId())
+                .data("imageId", winner.getImage().getId())
+                .data("sundayDate", sundayDate.toString())
+                .data("type", type.toString())
+                .data("action", wasExisting ? "updated" : "created")
+                .build();
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                ApiResponse.error(e.getMessage())
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error updating weekly winner: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Get current week winners
+     */
+    @GetMapping("/current")
+    public ResponseEntity<?> getCurrentWeekWinners() {
+        try {
+            return ResponseEntity.ok(weeklyWinnerService.getCurrentWeekWinners());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error fetching current week winners: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Get all winners
+     */
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllWinners() {
+        try {
+            return ResponseEntity.ok(weeklyWinnerService.getAllWinners());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error fetching winners: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Get winners by type
+     */
+    @GetMapping("/by-type/{type}")
+    public ResponseEntity<?> getWinnersByType(@PathVariable ImageType type) {
+        try {
+            return ResponseEntity.ok(weeklyWinnerService.getWinnersByType(type));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error fetching winners by type: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Get winners for a specific Sunday
+     */
+    @GetMapping("/by-date")
+    public ResponseEntity<?> getWinnersForDate(@RequestParam("sundayDate") String sundayDateStr) {
+        try {
+            LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            return ResponseEntity.ok(weeklyWinnerService.getWinnersForDate(sundayDate));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                ApiResponse.error(e.getMessage())
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error fetching winners: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Get latest 2 winners
+     */
+    @GetMapping("/latest")
+    public ResponseEntity<?> getLatestWinners() {
+        try {
+            return ResponseEntity.ok(weeklyWinnerService.getLatestWinners());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error fetching latest winners: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Delete a weekly winner
+     */
+    @DeleteMapping("/delete")
+    public ResponseEntity<?> deleteWeeklyWinner(
+            @RequestParam("sundayDate") String sundayDateStr,
+            @RequestParam("type") ImageType type) {
+
+        try {
+            LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            weeklyWinnerService.deleteWeeklyWinner(sundayDate, type);
+            
+            return ResponseEntity.ok(
+                ApiResponse.success("Weekly winner deleted successfully")
+            );
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse.error(e.getMessage())
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error deleting weekly winner: " + e.getMessage())
+            );
+        }
+    }
+}
