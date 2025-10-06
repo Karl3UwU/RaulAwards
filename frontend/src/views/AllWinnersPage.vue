@@ -40,8 +40,8 @@
               <span class="winner-type-badge">{{ winner.type }}</span>
               <div class="image-wrapper">
                 <img 
-                  v-if="!winner.imageError"
-                  :src="getImageUrl(winner.image.id)" 
+                  v-if="!winner.imageError && imageUrls[winner.image.id]"
+                  :src="imageUrls[winner.image.id]" 
                   :alt="winner.image.title || 'Winner image'"
                   @error="handleImageError(winner)"
                   @click="openImageModal(winner.image)"
@@ -90,7 +90,8 @@ export default {
       showImageModal: false,
       selectedImageUrl: '',
       selectedImageTitle: '',
-      selectedImageId: null
+      selectedImageId: null,
+      imageUrls: {} // Cache for image URLs
     }
   },
   mounted() {
@@ -102,8 +103,15 @@ export default {
       this.error = null
       
       try {
+        console.log('Loading all winners...')
         const response = await api.getAllWinners()
+        console.log('Winners loaded:', response.data)
         this.winners = response.data
+        
+        // Pre-load image URLs for all winners
+        console.log('Pre-loading image URLs...')
+        await this.preloadImageUrls(response.data)
+        console.log('Image URLs loaded:', this.imageUrls)
         
         // Group winners by sundayDate
         const grouped = {}
@@ -122,6 +130,8 @@ export default {
             winners: grouped[date]
           }))
         
+        console.log('Grouped winners:', this.groupedWinners)
+        
       } catch (err) {
         console.error('Error loading winners:', err)
         this.error = 'Failed to load winners. Please try again.'
@@ -130,12 +140,32 @@ export default {
       }
     },
 
+    async preloadImageUrls(winners) {
+      if (!winners || winners.length === 0) {
+        console.log('No winners to preload images for')
+        return
+      }
+      
+      const imagePromises = winners.map(async (winner) => {
+        try {
+          const imageUrl = await api.getImageUrl(winner.image.id)
+          this.imageUrls[winner.image.id] = imageUrl
+        } catch (error) {
+          console.error(`Error loading image for winner ${winner.id}, image ${winner.image.id}:`, error)
+          this.imageUrls[winner.image.id] = null
+        }
+      })
+      
+      const results = await Promise.allSettled(imagePromises)
+      console.log('Image loading results:', results)
+    },
+
     goToWeek(sundayDate) {
       this.$router.push({ path: '/', query: { date: sundayDate } })
     },
 
-    async getImageUrl(imageId) {
-      return await api.getImageUrl(imageId)
+    getImageUrl(imageId) {
+      return this.imageUrls[imageId] || null
     },
 
     formatDate(dateString) {
@@ -149,7 +179,7 @@ export default {
     },
 
     handleImageError(winner) {
-      this.$set(winner, 'imageError', true)
+      winner.imageError = true
     },
 
     logout() {
@@ -157,8 +187,8 @@ export default {
       this.$router.push('/login')
     },
 
-    openImageModal(image) {
-      this.selectedImageUrl = api.getImageUrl(image.id)
+    async openImageModal(image) {
+      this.selectedImageUrl = await api.getImageUrl(image.id)
       this.selectedImageTitle = image.title || 'Winner Image'
       this.selectedImageId = image.id
       this.showImageModal = true
