@@ -134,10 +134,8 @@ export default {
       this.$router.push({ path: '/', query: { date: sundayDate } })
     },
 
-    getImageUrl(imageId) {
-      const token = this.getToken()
-      const base = api.getImageUrl(imageId)
-      return token ? `${base}?token=${token}` : base
+    async getImageUrl(imageId) {
+      return await api.getImageUrl(imageId)
     },
 
     formatDate(dateString) {
@@ -160,7 +158,7 @@ export default {
     },
 
     openImageModal(image) {
-      this.selectedImageUrl = api.getImageUrl(image.id) + `?token=${this.getToken()}`
+      this.selectedImageUrl = api.getImageUrl(image.id)
       this.selectedImageTitle = image.title || 'Winner Image'
       this.selectedImageId = image.id
       this.showImageModal = true
@@ -173,10 +171,6 @@ export default {
       this.selectedImageId = null
     },
 
-    getToken() {
-      const { getToken } = require('../services/token')
-      return getToken()
-    },
 
     goToDashboard() {
       this.$router.push('/dashboard')

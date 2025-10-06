@@ -11,12 +11,6 @@ public final class AuthUtil {
         return null;
     }
 
-    public static String extractToken(String authHeader, String tokenParam) {
-        if (tokenParam != null && !tokenParam.isBlank()) {
-            return tokenParam;
-        }
-        return extractToken(authHeader);
-    }
 }
 
 

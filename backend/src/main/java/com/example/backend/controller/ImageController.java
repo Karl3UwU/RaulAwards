@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.entity.Image;
@@ -37,10 +36,9 @@ public class ImageController {
     @Transactional(readOnly = true)
     public ResponseEntity<?> getImage(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenQuery,
             @PathVariable Long id) {
 
-        String token = AuthUtil.extractToken(authHeader, tokenQuery);
+        String token = AuthUtil.extractToken(authHeader);
         if (!authService.validate(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -62,10 +60,9 @@ public class ImageController {
     @Transactional(readOnly = true)
     public ResponseEntity<?> downloadImage(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(value = "token", required = false) String tokenQuery,
             @PathVariable Long id) {
 
-        String token = AuthUtil.extractToken(authHeader, tokenQuery);
+        String token = AuthUtil.extractToken(authHeader);
         if (!authService.validate(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

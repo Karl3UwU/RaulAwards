@@ -6,9 +6,13 @@
     <div class="card-content">
       <div v-if="winner" class="winner-content">
         <div class="image-container" @click="$emit('open-image', winner.image)">
+          <div v-if="imageLoading" class="image-loading">
+            <div class="loading-spinner"></div>
+            <p>Loading image...</p>
+          </div>
           <img 
-            v-if="!imageError"
-            :src="getImageUrl(winner.image.id)" 
+            v-else-if="imageUrl && !imageError"
+            :src="imageUrl" 
             :alt="winner.image.title || 'Winner image'"
             @error="handleImageError"
             class="winner-image"
@@ -17,7 +21,7 @@
             <div class="error-icon">⚠️</div>
             <p>Failed to retrieve the image</p>
           </div>
-          <div v-if="!imageError" class="image-overlay">
+          <div v-if="imageUrl && !imageError" class="image-overlay">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
@@ -77,7 +81,9 @@ export default {
   },
   data() {
     return {
-      imageError: false
+      imageError: false,
+      imageUrl: null,
+      imageLoading: true
     }
   },
   computed: {
@@ -85,11 +91,44 @@ export default {
       return getRole() === 'ADMIN'
     }
   },
+  async mounted() {
+    if (this.winner && this.winner.image) {
+      await this.loadImage()
+    }
+  },
+  watch: {
+    winner: {
+      handler: async function(newWinner) {
+        if (newWinner && newWinner.image) {
+          await this.loadImage()
+        } else {
+          this.imageUrl = null
+          this.imageLoading = false
+        }
+      },
+      immediate: true
+    }
+  },
   methods: {
-    getImageUrl(imageId) {
-      const token = getToken()
-      const base = api.getImageUrl(imageId)
-      return token ? `${base}?token=${token}` : base
+    async loadImage() {
+      if (!this.winner || !this.winner.image) return
+      
+      this.imageLoading = true
+      this.imageError = false
+      
+      try {
+        const url = await api.getImageUrl(this.winner.image.id)
+        if (url) {
+          this.imageUrl = url
+        } else {
+          this.imageError = true
+        }
+      } catch (error) {
+        console.error('Error loading image:', error)
+        this.imageError = true
+      } finally {
+        this.imageLoading = false
+      }
     },
 
     formatDate(dateString) {
@@ -193,6 +232,40 @@ export default {
 .image-overlay svg {
   width: 48px;
   height: 48px;
+}
+
+.image-loading {
+  width: 100%;
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 2px dashed #dee2e6;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e9ecef;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.image-loading p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
 }
 
 .image-error {

@@ -220,8 +220,8 @@ export default {
       this.$router.push('/login')
     },
 
-    openImageModal(image) {
-      this.selectedImageUrl = api.getImageUrl(image.id) + `?token=${this.getToken()}`
+    async openImageModal(image) {
+      this.selectedImageUrl = await api.getImageUrl(image.id)
       this.selectedImageTitle = image.title || 'Winner Image'
       this.selectedImageId = image.id
       this.showImageModal = true
@@ -234,10 +234,6 @@ export default {
       this.selectedImageId = null
     },
 
-    getToken() {
-      const { getToken } = require('../services/token')
-      return getToken()
-    },
 
     isSunday(dateString) {
       const date = new Date(dateString)

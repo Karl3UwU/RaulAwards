@@ -44,9 +44,17 @@ export default {
     })
   },
 
-  // Get image URL for a winner
-  getImageUrl(imageId) {
-    return `${API_BASE_URL}/images/${imageId}`
+  // Get image URL for a winner (returns a blob URL for authenticated access)
+  async getImageUrl(imageId) {
+    try {
+      const response = await http.get(`/images/${imageId}`, {
+        responseType: 'blob'
+      })
+      return URL.createObjectURL(response.data)
+    } catch (error) {
+      console.error('Error loading image:', error)
+      return null
+    }
   },
 
   // Download image
