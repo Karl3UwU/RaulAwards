@@ -21,7 +21,13 @@
         
         <div class="form-group">
           <label for="type">Winner Type</label>
-          <select id="type" v-model="formData.type" required class="form-input">
+          <select 
+            id="type" 
+            v-model="formData.type" 
+            required 
+            :disabled="isUpdate"
+            class="form-input"
+          >
             <option value="OVERALL">Group Winner</option>
             <option value="RAUL">Raul's Winner</option>
           </select>
@@ -39,18 +45,21 @@
         </div>
         
         <div class="form-group">
-          <label for="image">Image File</label>
+          <label for="image">Image File {{ isUpdate ? '(optional - leave empty to keep current image)' : '' }}</label>
           <input 
             id="image"
             ref="fileInput"
             type="file" 
             accept="image/*" 
-            required 
+            :required="!isUpdate"
             @change="onFileChange"
             class="form-input"
           />
           <div v-if="selectedFile" class="file-info">
             Selected: {{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
+          </div>
+          <div v-if="isUpdate && !selectedFile" class="file-info">
+            Current image will be kept
           </div>
         </div>
         
@@ -181,7 +190,7 @@ export default {
     },
     
     async onSubmit() {
-      if (!this.selectedFile) {
+      if (!this.isUpdate && !this.selectedFile) {
         alert('Please select an image file')
         return
       }
@@ -189,18 +198,24 @@ export default {
       this.loading = true
       
       try {
-        const formData = new FormData()
-        formData.append('sundayDate', this.formData.sundayDate)
-        formData.append('type', this.formData.type)
-        formData.append('image', this.selectedFile)
-        if (this.formData.title) {
-          formData.append('title', this.formData.title)
-        }
-        
-        if (this.isUpdate) {
-          await api.updateWinner(formData)
+        if (this.isUpdate && !this.selectedFile) {
+          // Update title only
+          await api.updateWinnerTitle(this.formData.sundayDate, this.formData.type, this.formData.title)
         } else {
-          await api.createWinner(formData)
+          // Create or update with image
+          const formData = new FormData()
+          formData.append('sundayDate', this.formData.sundayDate)
+          formData.append('type', this.formData.type)
+          formData.append('image', this.selectedFile)
+          if (this.formData.title) {
+            formData.append('title', this.formData.title)
+          }
+          
+          if (this.isUpdate) {
+            await api.updateWinner(formData)
+          } else {
+            await api.createWinner(formData)
+          }
         }
         
         this.$emit('success')

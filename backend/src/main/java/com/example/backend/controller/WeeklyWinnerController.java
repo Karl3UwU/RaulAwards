@@ -412,6 +412,54 @@ public class WeeklyWinnerController {
     }
 
     /**
+     * Update winner title only (no image change)
+     */
+    @PutMapping("/update-title")
+    public ResponseEntity<?> updateWinnerTitle(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam("sundayDate") String sundayDateStr,
+            @RequestParam("type") ImageType type,
+            @RequestParam(value = "title", required = false) String title) {
+
+        try {
+            String token = AuthUtil.extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
+            if (!isAdmin(token)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error("Forbidden: admin role required")
+                );
+            }
+            
+            LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            
+            // Validate that the date is a Sunday
+            if (sundayDate.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Invalid date: " + sundayDateStr + " is not a Sunday. Only Sunday dates are allowed for weekly winners.")
+                );
+            }
+            
+            weeklyWinnerService.updateWinnerTitle(sundayDate, type, title);
+            
+            return ResponseEntity.ok(
+                ApiResponse.success("Winner title updated successfully")
+            );
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse.error(e.getMessage())
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error updating winner title: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
      * Delete a weekly winner
      */
     @DeleteMapping("/delete")

@@ -67,5 +67,12 @@ export default {
     return http.get(`/images/${imageId}/download`, {
       responseType: 'blob'
     })
+  },
+
+  // Update winner title only (no image change)
+  updateWinnerTitle(sundayDate, type, title) {
+    return http.put('/weekly-winners/update-title', null, {
+      params: { sundayDate, type, title }
+    })
   }
 }

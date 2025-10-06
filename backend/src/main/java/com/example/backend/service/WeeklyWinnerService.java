@@ -219,4 +219,22 @@ public class WeeklyWinnerService {
     public List<WeeklyWinner> getLatestWinners() {
         return weeklyWinnerRepository.findTop2ByOrderBySundayDateDesc();
     }
+
+    /**
+     * Update winner title only (no image change)
+     */
+    public void updateWinnerTitle(LocalDate sundayDate, ImageType type, String title) {
+        Optional<WeeklyWinner> winnerOpt = weeklyWinnerRepository.findBySundayDateAndType(sundayDate, type);
+        
+        if (winnerOpt.isPresent()) {
+            WeeklyWinner winner = winnerOpt.get();
+            Image image = winner.getImage();
+            image.setTitle(title != null ? title : "Winner for " + sundayDate);
+            imageRepository.save(image);
+        } else {
+            throw new IllegalArgumentException(
+                "No winner found for " + type + " on " + sundayDate
+            );
+        }
+    }
 }
