@@ -1,18 +1,37 @@
 package com.example.backend.controller;
 
-import com.example.backend.entity.ImageType;
-import com.example.backend.entity.WeeklyWinner;
-import com.example.backend.service.WeeklyWinnerService;
-import com.example.backend.service.AuthService;
-import com.example.backend.util.ApiResponse;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
-import java.util.Map;
+import com.example.backend.dto.ImageSummaryDto;
+import com.example.backend.dto.WeeklyWinnerDto;
+import com.example.backend.entity.ImageType;
+import com.example.backend.entity.WeeklyWinner;
+import com.example.backend.service.AuthService;
+import com.example.backend.service.WeeklyWinnerService;
+import com.example.backend.util.ApiResponse;
+import com.example.backend.util.AuthUtil;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -25,13 +44,6 @@ public class WeeklyWinnerController {
     @Autowired
     private AuthService authService;
 
-    private String extractToken(String authHeader) {
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-        return null;
-    }
-
     private boolean isAuthorized(String token) {
         return authService.validate(token);
     }
@@ -39,6 +51,27 @@ public class WeeklyWinnerController {
     private boolean isAdmin(String token) {
         String role = authService.getRole(token);
         return role != null && role.equals("ADMIN");
+    }
+
+    private WeeklyWinnerDto toDto(WeeklyWinner w) {
+        try {
+            return new WeeklyWinnerDto(
+                w.getId(),
+                w.getSundayDate().toString(),
+                w.getType(),
+                new ImageSummaryDto(w.getImage().getId(), w.getImage().getTitle())
+            );
+        } catch (Exception e) {
+            // If there's an issue accessing the image (e.g., LOB stream error),
+            // create a DTO with minimal image info
+            System.err.println("Error creating DTO for winner " + w.getId() + ": " + e.getMessage());
+            return new WeeklyWinnerDto(
+                w.getId(),
+                w.getSundayDate().toString(),
+                w.getType(),
+                new ImageSummaryDto(w.getImage().getId(), "Image unavailable")
+            );
+        }
     }
 
     /**
@@ -53,7 +86,7 @@ public class WeeklyWinnerController {
             @RequestParam(value = "title", required = false) String title) {
 
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
@@ -64,7 +97,32 @@ public class WeeklyWinnerController {
                     ApiResponse.error("Forbidden: admin role required")
                 );
             }
+            
+            // Validate file size (100MB limit)
+            long maxFileSize = 100 * 1024 * 1024; // 100MB in bytes
+            if (imageFile.getSize() > maxFileSize) {
+                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(
+                    ApiResponse.error("File too large. Maximum size allowed is 100MB. Your file size: " + 
+                        String.format("%.2f MB", imageFile.getSize() / (1024.0 * 1024.0)))
+                );
+            }
+            
+            // Validate file is not empty
+            if (imageFile.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Image file is empty")
+                );
+            }
+            
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            
+            // Validate that the date is a Sunday
+            if (sundayDate.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Invalid date: " + sundayDateStr + " is not a Sunday. Only Sunday dates are allowed for weekly winners.")
+                );
+            }
+            
             WeeklyWinner winner = weeklyWinnerService.createWeeklyWinner(sundayDate, type, imageFile, title);
 
             Map<String, Object> response = ApiResponse.successBuilder()
@@ -104,7 +162,7 @@ public class WeeklyWinnerController {
             @RequestParam(value = "title", required = false) String title) {
 
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
@@ -115,7 +173,31 @@ public class WeeklyWinnerController {
                     ApiResponse.error("Forbidden: admin role required")
                 );
             }
+            
+            // Validate file size (100MB limit)
+            long maxFileSize = 100 * 1024 * 1024; // 100MB in bytes
+            if (imageFile.getSize() > maxFileSize) {
+                return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(
+                    ApiResponse.error("File too large. Maximum size allowed is 100MB. Your file size: " + 
+                        String.format("%.2f MB", imageFile.getSize() / (1024.0 * 1024.0)))
+                );
+            }
+            
+            // Validate file is not empty
+            if (imageFile.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Image file is empty")
+                );
+            }
+            
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            
+            // Validate that the date is a Sunday
+            if (sundayDate.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Invalid date: " + sundayDateStr + " is not a Sunday. Only Sunday dates are allowed for weekly winners.")
+                );
+            }
             
             boolean wasExisting = weeklyWinnerService.wasExistingWinner(sundayDate, type);
             
@@ -156,13 +238,16 @@ public class WeeklyWinnerController {
     public ResponseEntity<?> getCurrentWeekWinners(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
                 );
             }
-            return ResponseEntity.ok(weeklyWinnerService.getCurrentWeekWinners());
+            return ResponseEntity.ok(
+                weeklyWinnerService.getCurrentWeekWinners()
+                    .stream().map(this::toDto).collect(Collectors.toList())
+            );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ApiResponse.error("Error fetching current week winners: " + e.getMessage())
@@ -177,13 +262,16 @@ public class WeeklyWinnerController {
     public ResponseEntity<?> getAllWinners(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
                 );
             }
-            return ResponseEntity.ok(weeklyWinnerService.getAllWinners());
+            return ResponseEntity.ok(
+                weeklyWinnerService.getAllWinners()
+                    .stream().map(this::toDto).collect(Collectors.toList())
+            );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ApiResponse.error("Error fetching winners: " + e.getMessage())
@@ -199,13 +287,16 @@ public class WeeklyWinnerController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable ImageType type) {
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
                 );
             }
-            return ResponseEntity.ok(weeklyWinnerService.getWinnersByType(type));
+            return ResponseEntity.ok(
+                weeklyWinnerService.getWinnersByType(type)
+                    .stream().map(this::toDto).collect(Collectors.toList())
+            );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ApiResponse.error("Error fetching winners by type: " + e.getMessage())
@@ -221,14 +312,17 @@ public class WeeklyWinnerController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam("sundayDate") String sundayDateStr) {
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
                 );
             }
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
-            return ResponseEntity.ok(weeklyWinnerService.getWinnersForDate(sundayDate));
+            return ResponseEntity.ok(
+                weeklyWinnerService.getWinnersForDate(sundayDate)
+                    .stream().map(this::toDto).collect(Collectors.toList())
+            );
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(
                 ApiResponse.error(e.getMessage())
@@ -247,16 +341,72 @@ public class WeeklyWinnerController {
     public ResponseEntity<?> getLatestWinners(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
                 );
             }
-            return ResponseEntity.ok(weeklyWinnerService.getLatestWinners());
+            return ResponseEntity.ok(
+                weeklyWinnerService.getLatestWinners()
+                    .stream().map(this::toDto).collect(Collectors.toList())
+            );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ApiResponse.error("Error fetching latest winners: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Archive endpoint - list all Sundays between start and end with presence flags
+     */
+    @GetMapping("/archive")
+    public ResponseEntity<?> getArchive(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam("start") String startStr,
+            @RequestParam("end") String endStr) {
+        try {
+            String token = AuthUtil.extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
+
+            LocalDate start = LocalDate.parse(startStr);
+            LocalDate end = LocalDate.parse(endStr);
+
+            if (start.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                start = start.minusDays((start.getDayOfWeek().getValue()) % 7);
+            }
+            if (end.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                end = end.minusDays((end.getDayOfWeek().getValue()) % 7);
+            }
+
+            Map<LocalDate, Map<String, Boolean>> byDate = new HashMap<>();
+            for (WeeklyWinner w : weeklyWinnerService.getAllWinners()) {
+                if (!w.getSundayDate().isBefore(start) && !w.getSundayDate().isAfter(end)) {
+                    byDate.computeIfAbsent(w.getSundayDate(), d -> new HashMap<>())
+                          .put(w.getType().name().toLowerCase(), true);
+                }
+            }
+
+            List<Map<String, Object>> archive = new ArrayList<>();
+            for (LocalDate d = start; !d.isAfter(end); d = d.plusWeeks(1)) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("sundayDate", d.toString());
+                Map<String, Boolean> flags = byDate.getOrDefault(d, Collections.emptyMap());
+                row.put("overall", flags.getOrDefault("overall", false));
+                row.put("raul", flags.getOrDefault("raul", false));
+                archive.add(row);
+            }
+
+            archive.sort((a, b) -> ((String)b.get("sundayDate")).compareTo((String)a.get("sundayDate")));
+            return ResponseEntity.ok(archive);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error building archive: " + e.getMessage())
             );
         }
     }
@@ -271,7 +421,7 @@ public class WeeklyWinnerController {
             @RequestParam("type") ImageType type) {
 
         try {
-            String token = extractToken(authHeader);
+            String token = AuthUtil.extractToken(authHeader);
             if (!isAuthorized(token)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error("Unauthorized")
@@ -283,6 +433,14 @@ public class WeeklyWinnerController {
                 );
             }
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
+            
+            // Validate that the date is a Sunday
+            if (sundayDate.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Invalid date: " + sundayDateStr + " is not a Sunday. Only Sunday dates are allowed for weekly winners.")
+                );
+            }
+            
             weeklyWinnerService.deleteWeeklyWinner(sundayDate, type);
             
             return ResponseEntity.ok(

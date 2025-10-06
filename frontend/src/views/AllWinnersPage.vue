@@ -2,7 +2,10 @@
   <div class="all-winners-page">
     <nav class="navbar">
       <h1>All Winners</h1>
-      <router-link to="/" class="nav-link">Back to Home</router-link>
+      <div class="nav-actions">
+        <router-link to="/" class="nav-link">Back to Home</router-link>
+        <button @click="logout" class="logout-btn">Logout</button>
+      </div>
     </nav>
 
     <div class="container">
@@ -39,6 +42,8 @@
                 :src="getImageUrl(winner.image.id)" 
                 :alt="winner.image.title || 'Winner image'"
                 @error="handleImageError"
+                @click="openImageModal(winner.image)"
+                class="clickable-image"
               />
               <span class="winner-title">{{ winner.image.title || 'Untitled' }}</span>
             </div>
@@ -50,20 +55,35 @@
         No winners found.
       </div>
     </div>
+
+    <ImageModal 
+      :show="showImageModal" 
+      :imageUrl="selectedImageUrl" 
+      :title="selectedImageTitle"
+      :imageId="selectedImageId"
+      @close="closeImageModal"
+    />
   </div>
 </template>
 
 <script>
 import api from '../services/api'
+import authService from '../services/auth'
+import ImageModal from '../components/ImageModal.vue'
 
 export default {
   name: 'AllWinnersPage',
+  components: { ImageModal },
   data() {
     return {
       winners: [],
       groupedWinners: [],
       loading: true,
-      error: null
+      error: null,
+      showImageModal: false,
+      selectedImageUrl: '',
+      selectedImageTitle: '',
+      selectedImageId: null
     }
   },
   mounted() {
@@ -123,6 +143,30 @@ export default {
 
     handleImageError(event) {
       event.target.src = '/placeholder.png'
+    },
+
+    logout() {
+      authService.logout()
+      this.$router.push('/login')
+    },
+
+    openImageModal(image) {
+      this.selectedImageUrl = api.getImageUrl(image.id) + `?token=${this.getToken()}`
+      this.selectedImageTitle = image.title || 'Winner Image'
+      this.selectedImageId = image.id
+      this.showImageModal = true
+    },
+
+    closeImageModal() {
+      this.showImageModal = false
+      this.selectedImageUrl = ''
+      this.selectedImageTitle = ''
+      this.selectedImageId = null
+    },
+
+    getToken() {
+      const { getToken } = require('../services/token')
+      return getToken()
     }
   }
 }
@@ -147,6 +191,12 @@ export default {
   margin: 0;
 }
 
+.nav-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
 .nav-link {
   color: white;
   text-decoration: none;
@@ -158,6 +208,22 @@ export default {
 
 .nav-link:hover {
   background: #4a5f7f;
+}
+
+.logout-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.logout-btn:hover {
+  background: #c0392b;
 }
 
 .container {
@@ -238,6 +304,16 @@ export default {
   height: 150px;
   object-fit: cover;
   border-radius: 4px;
+}
+
+.clickable-image {
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.clickable-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .winner-title {

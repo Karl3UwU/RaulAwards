@@ -8,6 +8,7 @@ const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', name: 'LoginPage', component: LoginPage },
   { path: '/dashboard', name: 'Dashboard', component: HomePage },
+  { path: '/dashboard/:date', name: 'DashboardByDate', component: HomePage, props: true },
   { path: '/winners', name: 'AllWinnersPage', component: AllWinnersPage }
 ]
 

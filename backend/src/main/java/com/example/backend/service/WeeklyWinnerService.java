@@ -1,20 +1,23 @@
 package com.example.backend.service;
 
-import com.example.backend.entity.Image;
-import com.example.backend.entity.ImageType;
-import com.example.backend.entity.WeeklyWinner;
-import com.example.backend.repository.ImageRepository;
-import com.example.backend.repository.WeeklyWinnerRepository;
+import java.io.IOException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import com.example.backend.entity.Image;
+import com.example.backend.entity.ImageType;
+import com.example.backend.entity.WeeklyWinner;
+import com.example.backend.repository.ImageRepository;
+import com.example.backend.repository.WeeklyWinnerRepository;
+import com.example.backend.util.FileUtil;
 
 @Service
 @Transactional
@@ -53,12 +56,22 @@ public class WeeklyWinnerService {
         }
 
         // Create and save the image
+        byte[] imageBytes = imageFile.getBytes();
+        String detectedMimeType = FileUtil.getMimeTypeFromFile(imageFile);
+        
+        System.out.println("DEBUG: Image file size: " + imageBytes.length + " bytes");
+        System.out.println("DEBUG: Original content type: " + imageFile.getContentType());
+        System.out.println("DEBUG: Detected MIME type: " + detectedMimeType);
+        System.out.println("DEBUG: Original filename: " + imageFile.getOriginalFilename());
+        
         Image image = new Image();
-        image.setImageData(imageFile.getBytes());
+        image.setImageData(imageBytes);
         image.setType(type);
         image.setTitle(title != null ? title : "Winner for " + sundayDate);
-        image.setMimeType(imageFile.getContentType());
+        image.setMimeType(detectedMimeType);
         Image savedImage = imageRepository.save(image);
+        
+        System.out.println("DEBUG: Saved image ID: " + savedImage.getId());
 
         // Create and save the weekly winner
         WeeklyWinner weeklyWinner = new WeeklyWinner(sundayDate, type, savedImage);
@@ -113,8 +126,25 @@ public class WeeklyWinnerService {
     /**
      * Get current week winners
      */
+    @Transactional(readOnly = true)
     public List<WeeklyWinner> getCurrentWeekWinners() {
-        return weeklyWinnerRepository.findCurrentWeekWinners();
+        // Use the simpler approach that doesn't trigger LOB loading issues
+        List<WeeklyWinner> winners = weeklyWinnerRepository.findTop2ByOrderBySundayDateDesc();
+        
+        // Force loading of image data within the transaction
+        for (WeeklyWinner winner : winners) {
+            if (winner.getImage() != null) {
+                // Access the image data to ensure it's loaded
+                try {
+                    byte[] data = winner.getImage().getImageData();
+                    System.out.println("DEBUG: Loaded image data for winner " + winner.getId() + ", size: " + (data != null ? data.length : "null"));
+                } catch (Exception e) {
+                    System.err.println("DEBUG: Error loading image data for winner " + winner.getId() + ": " + e.getMessage());
+                }
+            }
+        }
+        
+        return winners;
     }
 
     /**
@@ -157,7 +187,10 @@ public class WeeklyWinnerService {
      * Get winners for a specific Sunday
      */
     public List<WeeklyWinner> getWinnersForDate(LocalDate sundayDate) {
-        validateSundayDate(sundayDate);
+        // Don't validate Sunday requirement for read operations - just return empty if not Sunday
+        if (sundayDate.getDayOfWeek() != DayOfWeek.SUNDAY) {
+            return new ArrayList<>();
+        }
         return weeklyWinnerRepository.findBySundayDate(sundayDate);
     }
 

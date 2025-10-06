@@ -1,5 +1,5 @@
 import http from './http'
-import { getToken, setToken, clearToken, setRole } from './token'
+import { getToken, setToken, clearToken, setRole, clearRole } from './token'
 
 async function login(username, password) {
   const res = await http.post('/auth/login', { username, password })
@@ -24,9 +24,15 @@ async function validateToken() {
   }
 }
 
+function logout() {
+  clearToken()
+  clearRole()
+}
+
 export default {
   login,
   validateToken,
+  logout,
   getToken,
   setToken,
   clearToken

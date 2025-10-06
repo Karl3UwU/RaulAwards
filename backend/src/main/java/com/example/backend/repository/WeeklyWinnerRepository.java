@@ -1,15 +1,15 @@
 package com.example.backend.repository;
 
-import com.example.backend.entity.WeeklyWinner;
-import com.example.backend.entity.ImageType;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.example.backend.entity.ImageType;
+import com.example.backend.entity.WeeklyWinner;
 
 @Repository
 public interface WeeklyWinnerRepository extends JpaRepository<WeeklyWinner, Long> {
@@ -43,4 +43,10 @@ public interface WeeklyWinnerRepository extends JpaRepository<WeeklyWinner, Long
     @Query("SELECT w FROM WeeklyWinner w WHERE w.sundayDate = " +
            "(SELECT MAX(w2.sundayDate) FROM WeeklyWinner w2)")
     List<WeeklyWinner> findCurrentWeekWinners();
+    
+    // Custom query to get latest winners without loading image data
+    @Query("SELECT w.id, w.sundayDate, w.type, w.image.id, w.image.title, w.image.mimeType " +
+           "FROM WeeklyWinner w WHERE w.sundayDate = " +
+           "(SELECT MAX(w2.sundayDate) FROM WeeklyWinner w2)")
+    List<Object[]> findCurrentWeekWinnersSummary();
 }

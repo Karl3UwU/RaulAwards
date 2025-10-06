@@ -2,7 +2,11 @@
   <div class="home-page">
     <nav class="navbar">
       <h1>Raul Awards</h1>
-      <router-link to="/winners" class="nav-link">View All Winners</router-link>
+      <div class="nav-actions"> 
+        <button class="icon-btn" @click="openCalendar" title="Open calendar">📅</button>
+        <router-link to="/winners" class="nav-link">View All Winners</router-link>
+        <button @click="logout" class="logout-btn">Logout</button>
+      </div>
     </nav>
 
     <div class="container">
@@ -11,50 +15,102 @@
 
       <div v-if="loading" class="loading">Loading...</div>
       
+      <div v-else-if="isSundayError" class="sunday-error">
+        <h3>Not a sunday, go away</h3>
+        <button @click="goToCurrentWeek" class="btn-primary">Go to Current Week</button>
+      </div>
+      
       <div v-else-if="error" class="error">
         {{ error }}
       </div>
 
-      <div v-else-if="winners.length > 0" class="winners-grid">
-        <div v-for="winner in winners" :key="winner.id" class="winner-card">
-          <div class="winner-type">{{ winner.type }}</div>
-          <img 
-            :src="getImageUrl(winner.image.id)" 
-            :alt="winner.image.title || 'Winner image'"
-            @error="handleImageError"
-          />
-          <div class="winner-info">
-            <p class="winner-title">{{ winner.image.title || 'Untitled' }}</p>
-            <p class="winner-date">{{ formatDate(winner.sundayDate) }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div v-else class="no-winners">
-        No winners found for this date.
+      <div v-else class="cards-container">
+        <WinnerCard 
+          title="Group Winner" 
+          :winner="overallWinner"
+          type="OVERALL"
+          @add="openAddModal"
+          @update="openUpdateModal"
+          @open-image="openImageModal"
+        />
+        <WinnerCard 
+          title="Raul's Winner" 
+          :winner="raulWinner"
+          type="RAUL"
+          @add="openAddModal"
+          @update="openUpdateModal"
+          @open-image="openImageModal"
+        />
       </div>
     </div>
+
+    <CalendarModal :show="showCalendar" :archive="archive" @close="showCalendar=false" @select="onSelectDate" />
+    <WinnerModal 
+      :show="showWinnerModal" 
+      :winner="selectedWinner"
+      :sunday-date="currentSundayDate"
+      :type="selectedType"
+      @close="closeWinnerModal"
+      @success="onWinnerSaved"
+    />
+    <ImageModal 
+      :show="showImageModal" 
+      :imageUrl="selectedImageUrl" 
+      :title="selectedImageTitle"
+      :imageId="selectedImageId"
+      @close="closeImageModal"
+    />
   </div>
 </template>
 
 <script>
 import api from '../services/api'
+import authService from '../services/auth'
+import CalendarModal from '../components/CalendarModal.vue'
+import WinnerCard from '../components/WinnerCard.vue'
+import WinnerModal from '../components/WinnerModal.vue'
+import ImageModal from '../components/ImageModal.vue'
 
 export default {
   name: 'HomePage',
+  components: { CalendarModal, WinnerCard, WinnerModal, ImageModal },
   data() {
     return {
       winners: [],
       loading: true,
       error: null,
-      dateParam: null
+      dateParam: null,
+      showCalendar: false,
+      archive: [],
+      showWinnerModal: false,
+      selectedWinner: null,
+      selectedType: 'OVERALL',
+      showImageModal: false,
+      selectedImageUrl: '',
+      selectedImageTitle: '',
+      selectedImageId: null,
+      isSundayError: false
     }
   },
   mounted() {
     this.loadWinners()
   },
+  computed: {
+    overallWinner() {
+      return this.winners.find(w => w.type === 'OVERALL') || null
+    },
+    raulWinner() {
+      return this.winners.find(w => w.type === 'RAUL') || null
+    },
+    currentSundayDate() {
+      return this.dateParam || this.getCurrentSunday()
+    }
+  },
   watch: {
     '$route.query.date'() {
+      this.loadWinners()
+    },
+    '$route.params.date'() {
       this.loadWinners()
     }
   },
@@ -62,15 +118,23 @@ export default {
     async loadWinners() {
       this.loading = true
       this.error = null
+      this.isSundayError = false
       
       try {
         let response
         
-        // Check for date query parameter
-        const date = this.$route.query.date
+        // Check for date param or query parameter
+        const date = this.$route.params.date || this.$route.query.date
         this.dateParam = date
         
         if (date) {
+          // Validate that the date is a Sunday
+          if (!this.isSunday(date)) {
+            this.isSundayError = true
+            this.loading = false
+            return
+          }
+          
           // Load winners for specific date
           response = await api.getWinnersByDate(date)
         } else {
@@ -87,10 +151,6 @@ export default {
       }
     },
 
-    getImageUrl(imageId) {
-      return api.getImageUrl(imageId)
-    },
-
     formatDate(dateString) {
       const date = new Date(dateString)
       return date.toLocaleDateString('en-US', { 
@@ -101,8 +161,91 @@ export default {
       })
     },
 
-    handleImageError(event) {
-      event.target.src = '/placeholder.png' // Add a placeholder image
+    async openCalendar() {
+      try {
+        // Build a sensible default range: last 2 years to next 1 year
+        const now = new Date()
+        const start = new Date(now)
+        start.setFullYear(start.getFullYear() - 2)
+        const end = new Date(now)
+        end.setFullYear(end.getFullYear() + 1)
+        const startIso = start.toISOString().slice(0,10)
+        const endIso = end.toISOString().slice(0,10)
+        const res = await api.getArchive(startIso, endIso)
+        this.archive = res.data
+        this.showCalendar = true
+      } catch (e) {
+        console.error('Failed to load archive', e)
+      }
+    },
+
+    onSelectDate(iso) {
+      this.showCalendar = false
+      this.$router.push({ name: 'DashboardByDate', params: { date: iso } })
+    },
+
+    getCurrentSunday() {
+      const today = new Date()
+      const day = today.getDay()
+      const diff = today.getDate() - day
+      const sunday = new Date(today.setDate(diff))
+      return sunday.toISOString().slice(0, 10)
+    },
+
+    openAddModal(type) {
+      this.selectedWinner = null
+      this.selectedType = type
+      this.showWinnerModal = true
+    },
+
+    openUpdateModal(winner) {
+      this.selectedWinner = winner
+      this.selectedType = winner.type
+      this.showWinnerModal = true
+    },
+
+    closeWinnerModal() {
+      this.showWinnerModal = false
+      this.selectedWinner = null
+      this.selectedType = 'OVERALL'
+    },
+
+    onWinnerSaved() {
+      // Reload the page to ensure fresh data and proper URL handling
+      window.location.reload()
+    },
+
+    logout() {
+      authService.logout()
+      this.$router.push('/login')
+    },
+
+    openImageModal(image) {
+      this.selectedImageUrl = api.getImageUrl(image.id) + `?token=${this.getToken()}`
+      this.selectedImageTitle = image.title || 'Winner Image'
+      this.selectedImageId = image.id
+      this.showImageModal = true
+    },
+
+    closeImageModal() {
+      this.showImageModal = false
+      this.selectedImageUrl = ''
+      this.selectedImageTitle = ''
+      this.selectedImageId = null
+    },
+
+    getToken() {
+      const { getToken } = require('../services/token')
+      return getToken()
+    },
+
+    isSunday(dateString) {
+      const date = new Date(dateString)
+      return date.getDay() === 0 // 0 = Sunday
+    },
+
+    goToCurrentWeek() {
+      this.$router.push('/dashboard')
     }
   }
 }
@@ -136,8 +279,43 @@ export default {
   transition: background 0.3s;
 }
 
+.nav-actions { 
+  display: flex; 
+  gap: 0.5rem; 
+  align-items: center; 
+}
+
+.icon-btn { 
+  background: #34495e; 
+  color: white; 
+  border: 0; 
+  border-radius: 6px; 
+  padding: 0.4rem 0.6rem; 
+  cursor: pointer; 
+}
+
+.icon-btn:hover { 
+  background: #4a5f7f; 
+}
+
 .nav-link:hover {
   background: #4a5f7f;
+}
+
+.logout-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.logout-btn:hover {
+  background: #c0392b;
 }
 
 .container {
@@ -146,7 +324,7 @@ export default {
   padding: 2rem;
 }
 
-.loading, .error, .no-winners {
+.loading, .error {
   text-align: center;
   padding: 2rem;
   font-size: 1.2rem;
@@ -156,52 +334,59 @@ export default {
   color: #e74c3c;
 }
 
-.winners-grid {
+.sunday-error {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.sunday-error h3 {
+  color: #856404;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.sunday-error p {
+  color: #856404;
+  margin: 0 0 2rem 0;
+  font-size: 1.1rem;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 2rem;
   margin-top: 2rem;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.winner-card {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s;
-}
-
-.winner-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
-}
-
-.winner-type {
-  background: #3498db;
-  color: white;
-  padding: 0.5rem;
-  text-align: center;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.winner-card img {
-  width: 100%;
-  height: 300px;
-  object-fit: cover;
-}
-
-.winner-info {
-  padding: 1rem;
-}
-
-.winner-title {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-
-.winner-date {
-  color: #7f8c8d;
-  font-size: 0.9rem;
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .cards-container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
 }
 </style>
