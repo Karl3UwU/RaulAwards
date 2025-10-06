@@ -138,8 +138,8 @@ export default {
           // Load winners for specific date
           response = await api.getWinnersByDate(date)
         } else {
-          // Load latest winners
-          response = await api.getLatestWinners()
+          // Load current week winners
+          response = await api.getCurrentWinners()
         }
         
         this.winners = response.data

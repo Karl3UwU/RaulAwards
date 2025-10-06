@@ -124,12 +124,15 @@ public class WeeklyWinnerService {
     }
 
     /**
-     * Get current week winners
+     * Get current week winners - always returns the latest Sunday period
      */
     @Transactional(readOnly = true)
     public List<WeeklyWinner> getCurrentWeekWinners() {
-        // Use the simpler approach that doesn't trigger LOB loading issues
-        List<WeeklyWinner> winners = weeklyWinnerRepository.findTop2ByOrderBySundayDateDesc();
+        // Get the current/latest Sunday
+        LocalDate currentSunday = getCurrentSunday();
+        
+        // Get winners for the current Sunday (may be empty if no winners yet)
+        List<WeeklyWinner> winners = weeklyWinnerRepository.findBySundayDate(currentSunday);
         
         // Force loading of image data within the transaction
         for (WeeklyWinner winner : winners) {
@@ -145,6 +148,22 @@ public class WeeklyWinnerService {
         }
         
         return winners;
+    }
+    
+    /**
+     * Get the current/latest Sunday date
+     */
+    private LocalDate getCurrentSunday() {
+        LocalDate today = LocalDate.now();
+        
+        // If today is Sunday, return today
+        if (today.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            return today;
+        }
+        
+        // Otherwise, find the most recent Sunday
+        int daysSinceSunday = today.getDayOfWeek().getValue() % 7;
+        return today.minusDays(daysSinceSunday);
     }
 
     /**

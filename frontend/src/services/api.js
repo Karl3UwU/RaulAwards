@@ -1,9 +1,14 @@
 import http, { API_BASE_URL } from './http'
 
 export default {
-  // Get latest winners (current week)
-  getLatestWinners() {
+  // Get current week winners (latest Sunday period)
+  getCurrentWinners() {
     return http.get('/weekly-winners/current')
+  },
+  
+  // Get latest winners (current week) - alias for backward compatibility
+  getLatestWinners() {
+    return this.getCurrentWinners()
   },
 
   // Get winners for a specific date
