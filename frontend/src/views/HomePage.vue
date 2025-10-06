@@ -29,6 +29,7 @@
           title="Group Winner" 
           :winner="overallWinner"
           type="OVERALL"
+          :is-future-sunday="isFutureSunday"
           @add="openAddModal"
           @update="openUpdateModal"
           @open-image="openImageModal"
@@ -37,6 +38,7 @@
           title="Raul's Winner" 
           :winner="raulWinner"
           type="RAUL"
+          :is-future-sunday="isFutureSunday"
           @add="openAddModal"
           @update="openUpdateModal"
           @open-image="openImageModal"
@@ -104,6 +106,14 @@ export default {
     },
     currentSundayDate() {
       return this.dateParam || this.getCurrentSunday()
+    },
+    isFutureSunday() {
+      if (!this.currentSundayDate) return false
+      const selectedDate = new Date(this.currentSundayDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0) // Reset time to start of day
+      selectedDate.setHours(0, 0, 0, 0) // Reset time to start of day
+      return selectedDate > today
     }
   },
   watch: {

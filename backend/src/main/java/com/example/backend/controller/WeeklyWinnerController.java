@@ -123,6 +123,14 @@ public class WeeklyWinnerController {
                 );
             }
             
+            // Validate that the date is not in the future
+            LocalDate today = LocalDate.now();
+            if (sundayDate.isAfter(today)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Cannot create winners for future dates. Selected date: " + sundayDateStr + " is in the future.")
+                );
+            }
+            
             WeeklyWinner winner = weeklyWinnerService.createWeeklyWinner(sundayDate, type, imageFile, title);
 
             Map<String, Object> response = ApiResponse.successBuilder()
@@ -196,6 +204,14 @@ public class WeeklyWinnerController {
             if (sundayDate.getDayOfWeek() != DayOfWeek.SUNDAY) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                     ApiResponse.error("Invalid date: " + sundayDateStr + " is not a Sunday. Only Sunday dates are allowed for weekly winners.")
+                );
+            }
+            
+            // Validate that the date is not in the future
+            LocalDate today = LocalDate.now();
+            if (sundayDate.isAfter(today)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Cannot update winners for future dates. Selected date: " + sundayDateStr + " is in the future.")
                 );
             }
             
@@ -440,6 +456,14 @@ public class WeeklyWinnerController {
             if (sundayDate.getDayOfWeek() != DayOfWeek.SUNDAY) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                     ApiResponse.error("Invalid date: " + sundayDateStr + " is not a Sunday. Only Sunday dates are allowed for weekly winners.")
+                );
+            }
+            
+            // Validate that the date is not in the future
+            LocalDate today = LocalDate.now();
+            if (sundayDate.isAfter(today)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Cannot update winners for future dates. Selected date: " + sundayDateStr + " is in the future.")
                 );
             }
             

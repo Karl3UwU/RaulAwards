@@ -43,9 +43,11 @@
         <button 
           v-if="!winner" 
           @click="$emit('add', type)" 
+          :disabled="isFutureSunday"
           class="admin-btn add-btn"
+          :class="{ 'disabled': isFutureSunday }"
         >
-          Add Winner
+          {{ isFutureSunday ? 'Cannot add future winners' : 'Add Winner' }}
         </button>
         <button 
           v-else 
@@ -77,6 +79,10 @@ export default {
     type: {
       type: String,
       required: true
+    },
+    isFutureSunday: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -372,6 +378,20 @@ export default {
 
 .update-btn:hover {
   background: #e0a800;
+}
+
+.admin-btn.disabled,
+.admin-btn:disabled {
+  background: #6c757d;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-btn.disabled:hover,
+.admin-btn:disabled:hover {
+  background: #6c757d;
+  transform: none;
 }
 
 /* Mobile responsiveness */
