@@ -57,7 +57,7 @@
 import api from '../services/api'
 
 export default {
-  name: 'AllWinners',
+  name: 'AllWinnersPage',
   data() {
     return {
       winners: [],
@@ -246,3 +246,5 @@ export default {
   color: #555;
 }
 </style>
+
+

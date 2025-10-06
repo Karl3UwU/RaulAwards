@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.example.backend.entity.ImageType;
 import com.example.backend.entity.WeeklyWinner;
 import com.example.backend.service.WeeklyWinnerService;
+import com.example.backend.service.AuthService;
 import com.example.backend.util.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -21,17 +22,48 @@ public class WeeklyWinnerController {
     @Autowired
     private WeeklyWinnerService weeklyWinnerService;
 
+    @Autowired
+    private AuthService authService;
+
+    private String extractToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
+    }
+
+    private boolean isAuthorized(String token) {
+        return authService.validate(token);
+    }
+
+    private boolean isAdmin(String token) {
+        String role = authService.getRole(token);
+        return role != null && role.equals("ADMIN");
+    }
+
     /**
      * Create a new weekly winner entry
      */
     @PostMapping("/create")
     public ResponseEntity<?> createWeeklyWinner(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam("sundayDate") String sundayDateStr,
             @RequestParam("type") ImageType type,
             @RequestParam("image") MultipartFile imageFile,
             @RequestParam(value = "title", required = false) String title) {
 
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
+            if (!isAdmin(token)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error("Forbidden: admin role required")
+                );
+            }
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
             WeeklyWinner winner = weeklyWinnerService.createWeeklyWinner(sundayDate, type, imageFile, title);
 
@@ -65,12 +97,24 @@ public class WeeklyWinnerController {
      */
     @PutMapping("/update")
     public ResponseEntity<?> updateWeeklyWinner(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam("sundayDate") String sundayDateStr,
             @RequestParam("type") ImageType type,
             @RequestParam("image") MultipartFile imageFile,
             @RequestParam(value = "title", required = false) String title) {
 
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
+            if (!isAdmin(token)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error("Forbidden: admin role required")
+                );
+            }
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
             
             boolean wasExisting = weeklyWinnerService.wasExistingWinner(sundayDate, type);
@@ -109,8 +153,15 @@ public class WeeklyWinnerController {
      * Get current week winners
      */
     @GetMapping("/current")
-    public ResponseEntity<?> getCurrentWeekWinners() {
+    public ResponseEntity<?> getCurrentWeekWinners(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
             return ResponseEntity.ok(weeklyWinnerService.getCurrentWeekWinners());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
@@ -123,8 +174,15 @@ public class WeeklyWinnerController {
      * Get all winners
      */
     @GetMapping("/all")
-    public ResponseEntity<?> getAllWinners() {
+    public ResponseEntity<?> getAllWinners(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
             return ResponseEntity.ok(weeklyWinnerService.getAllWinners());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
@@ -137,8 +195,16 @@ public class WeeklyWinnerController {
      * Get winners by type
      */
     @GetMapping("/by-type/{type}")
-    public ResponseEntity<?> getWinnersByType(@PathVariable ImageType type) {
+    public ResponseEntity<?> getWinnersByType(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable ImageType type) {
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
             return ResponseEntity.ok(weeklyWinnerService.getWinnersByType(type));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
@@ -151,8 +217,16 @@ public class WeeklyWinnerController {
      * Get winners for a specific Sunday
      */
     @GetMapping("/by-date")
-    public ResponseEntity<?> getWinnersForDate(@RequestParam("sundayDate") String sundayDateStr) {
+    public ResponseEntity<?> getWinnersForDate(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam("sundayDate") String sundayDateStr) {
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
             return ResponseEntity.ok(weeklyWinnerService.getWinnersForDate(sundayDate));
         } catch (IllegalArgumentException e) {
@@ -170,8 +244,15 @@ public class WeeklyWinnerController {
      * Get latest 2 winners
      */
     @GetMapping("/latest")
-    public ResponseEntity<?> getLatestWinners() {
+    public ResponseEntity<?> getLatestWinners(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
             return ResponseEntity.ok(weeklyWinnerService.getLatestWinners());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
@@ -185,10 +266,22 @@ public class WeeklyWinnerController {
      */
     @DeleteMapping("/delete")
     public ResponseEntity<?> deleteWeeklyWinner(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam("sundayDate") String sundayDateStr,
             @RequestParam("type") ImageType type) {
 
         try {
+            String token = extractToken(authHeader);
+            if (!isAuthorized(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Unauthorized")
+                );
+            }
+            if (!isAdmin(token)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error("Forbidden: admin role required")
+                );
+            }
             LocalDate sundayDate = LocalDate.parse(sundayDateStr);
             weeklyWinnerService.deleteWeeklyWinner(sundayDate, type);
             

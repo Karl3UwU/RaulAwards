@@ -1,30 +1,21 @@
-import axios from 'axios'
-
-const API_BASE_URL = 'http://localhost:8080/api'
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+import http, { API_BASE_URL } from './http'
 
 export default {
   // Get latest winners (current week)
   getLatestWinners() {
-    return api.get('/weekly-winners/latest')
+    return http.get('/weekly-winners/current')
   },
 
   // Get winners for a specific date
   getWinnersByDate(sundayDate) {
-    return api.get('/weekly-winners/by-date', {
+    return http.get('/weekly-winners/by-date', {
       params: { sundayDate }
     })
   },
 
   // Get all winners
   getAllWinners() {
-    return api.get('/weekly-winners/all')
+    return http.get('/weekly-winners/all')
   },
 
   // Get image URL for a winner
