@@ -161,7 +161,7 @@ export default {
     },
 
     goToWeek(sundayDate) {
-      this.$router.push({ path: '/', query: { date: sundayDate } })
+      this.$router.push({ path: `/dashboard/${sundayDate}` })
     },
 
     getImageUrl(imageId) {
