@@ -1,7 +1,7 @@
 <template>
   <div class="home-page">
     <nav class="navbar">
-      <h1>Raul Awards</h1>
+      <h1 @click="goToDashboard" class="clickable-title">Raul Awards</h1>
       <div class="nav-actions"> 
         <button class="icon-btn" @click="openCalendar" title="Open calendar">📅</button>
         <router-link to="/winners" class="nav-link">View All Winners</router-link>
@@ -246,6 +246,10 @@ export default {
 
     goToCurrentWeek() {
       this.$router.push('/dashboard')
+    },
+
+    goToDashboard() {
+      this.$router.push('/dashboard')
     }
   }
 }
@@ -268,6 +272,15 @@ export default {
 
 .navbar h1 {
   margin: 0;
+}
+
+.clickable-title {
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.clickable-title:hover {
+  opacity: 0.8;
 }
 
 .nav-link {
@@ -322,6 +335,19 @@ export default {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 80px); /* Subtract navbar height */
+}
+
+.container h2 {
+  text-align: center;
+  margin: 0 0 2rem 0;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .loading, .error {
@@ -340,7 +366,9 @@ export default {
   background: #fff3cd;
   border: 1px solid #ffeaa7;
   border-radius: 8px;
-  margin: 2rem 0;
+  margin: 0 auto;
+  max-width: 600px;
+  width: 100%;
 }
 
 .sunday-error h3 {
@@ -375,18 +403,31 @@ export default {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
-  margin-top: 2rem;
+  margin: 0 auto;
   max-width: 1000px;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
 }
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+    min-height: calc(100vh - 70px);
+  }
+  
+  .container h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
   .cards-container {
     grid-template-columns: 1fr;
     gap: 1.5rem;
-    margin-top: 1.5rem;
+  }
+  
+  .sunday-error {
+    padding: 2rem 1rem;
+    margin: 0 1rem;
   }
 }
 </style>

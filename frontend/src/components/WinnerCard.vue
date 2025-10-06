@@ -7,12 +7,17 @@
       <div v-if="winner" class="winner-content">
         <div class="image-container" @click="$emit('open-image', winner.image)">
           <img 
+            v-if="!imageError"
             :src="getImageUrl(winner.image.id)" 
             :alt="winner.image.title || 'Winner image'"
             @error="handleImageError"
             class="winner-image"
           />
-          <div class="image-overlay">
+          <div v-else class="image-error">
+            <div class="error-icon">⚠️</div>
+            <p>Failed to retrieve the image</p>
+          </div>
+          <div v-if="!imageError" class="image-overlay">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
@@ -70,6 +75,11 @@ export default {
       required: true
     }
   },
+  data() {
+    return {
+      imageError: false
+    }
+  },
   computed: {
     isAdmin() {
       return getRole() === 'ADMIN'
@@ -93,7 +103,7 @@ export default {
     },
 
     handleImageError(event) {
-      event.target.src = '/placeholder.png'
+      this.imageError = true
     }
   }
 }
@@ -185,6 +195,30 @@ export default {
   height: 48px;
 }
 
+.image-error {
+  width: 100%;
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 2px dashed #dee2e6;
+}
+
+.error-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.image-error p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+}
+
 .winner-info {
   padding: 1.5rem;
   flex: 1;
@@ -274,6 +308,10 @@ export default {
   }
   
   .image-container .winner-image {
+    height: 200px;
+  }
+  
+  .image-error {
     height: 200px;
   }
   

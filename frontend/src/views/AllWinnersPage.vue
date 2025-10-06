@@ -1,7 +1,7 @@
 <template>
   <div class="all-winners-page">
     <nav class="navbar">
-      <h1>All Winners</h1>
+      <h1 @click="goToDashboard" class="clickable-title">All Winners</h1>
       <div class="nav-actions">
         <router-link to="/" class="nav-link">Back to Home</router-link>
         <button @click="logout" class="logout-btn">Logout</button>
@@ -38,13 +38,20 @@
               class="winner-item"
             >
               <span class="winner-type-badge">{{ winner.type }}</span>
-              <img 
-                :src="getImageUrl(winner.image.id)" 
-                :alt="winner.image.title || 'Winner image'"
-                @error="handleImageError"
-                @click="openImageModal(winner.image)"
-                class="clickable-image"
-              />
+              <div class="image-wrapper">
+                <img 
+                  v-if="!winner.imageError"
+                  :src="getImageUrl(winner.image.id)" 
+                  :alt="winner.image.title || 'Winner image'"
+                  @error="handleImageError(winner)"
+                  @click="openImageModal(winner.image)"
+                  class="clickable-image"
+                />
+                <div v-else class="image-error-small">
+                  <div class="error-icon">⚠️</div>
+                  <p>Failed to load</p>
+                </div>
+              </div>
               <span class="winner-title">{{ winner.image.title || 'Untitled' }}</span>
             </div>
           </div>
@@ -128,7 +135,9 @@ export default {
     },
 
     getImageUrl(imageId) {
-      return api.getImageUrl(imageId)
+      const token = this.getToken()
+      const base = api.getImageUrl(imageId)
+      return token ? `${base}?token=${token}` : base
     },
 
     formatDate(dateString) {
@@ -141,8 +150,8 @@ export default {
       })
     },
 
-    handleImageError(event) {
-      event.target.src = '/placeholder.png'
+    handleImageError(winner) {
+      this.$set(winner, 'imageError', true)
     },
 
     logout() {
@@ -167,6 +176,10 @@ export default {
     getToken() {
       const { getToken } = require('../services/token')
       return getToken()
+    },
+
+    goToDashboard() {
+      this.$router.push('/dashboard')
     }
   }
 }
@@ -189,6 +202,15 @@ export default {
 
 .navbar h1 {
   margin: 0;
+}
+
+.clickable-title {
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.clickable-title:hover {
+  opacity: 0.8;
 }
 
 .nav-actions {
@@ -298,12 +320,43 @@ export default {
   text-transform: uppercase;
 }
 
-.winner-item img {
+.image-wrapper {
   width: 100%;
   max-width: 200px;
   height: 150px;
+  position: relative;
+}
+
+.winner-item img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   border-radius: 4px;
+}
+
+.image-error-small {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 2px dashed #dee2e6;
+  border-radius: 4px;
+}
+
+.image-error-small .error-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.image-error-small p {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
 }
 
 .clickable-image {
